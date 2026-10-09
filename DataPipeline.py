@@ -16,7 +16,17 @@ restaurants_existed_df = pd.read_csv(restaurants_existed_path)
 restaurants_for_lease_df = pd.read_excel(restaurants_for_lease_path)
 restaurants_for_lease_2_df = pd.read_csv(restaurants_for_lease_2_path)
 restaurants_for_lease_3_df = pd.read_excel(restaurants_for_lease_3_path)
-ipums_usa_df = pd.read_csv(ipums_usa_path)
+# The serving process only needs these demographic fields. Loading the entire
+# person-record extract causes large transient allocations on small instances.
+# All seven source fields are integers fitting int32 in the supplied extract.
+IPUMS_COLUMNS = ['YEAR', 'COUNTYFIP', 'AGE', 'RACE', 'HISPAN', 'RACASIAN', 'INCTOT']
+with pd.read_csv(
+    ipums_usa_path,
+    usecols=IPUMS_COLUMNS,
+    dtype={column: 'int32' for column in IPUMS_COLUMNS},
+    chunksize=100_000,
+) as ipums_reader:
+    ipums_usa_df = pd.concat(ipums_reader, ignore_index=True)
 california_geo_df = pd.read_excel(california_geo_path)
 
 #-------- Data Cleaning --------#
