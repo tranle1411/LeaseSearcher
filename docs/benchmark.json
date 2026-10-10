@@ -1,0 +1,17 @@
+{
+  "environment": "Windows",
+  "target": "http://127.0.0.1:8000",
+  "dataset_version": "ca-f86d3e4c426f1498",
+  "mode": "snapshot",
+  "eligibility_policy": "demo_assumed",
+  "pricing_policy": "midpoint",
+  "requests": 100,
+  "concurrency": 10,
+  "search_p50_ms": 194.68,
+  "search_p95_ms": 370.65,
+  "export_p95_ms": 133.33,
+  "returned_matches": [
+    10
+  ],
+  "limitation": "Local warm API using default search and the reported snapshot/policy. Not a hosted SLA or Render cold-start measurement."
+}

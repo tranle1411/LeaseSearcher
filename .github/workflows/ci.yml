@@ -1,0 +1,66 @@
+name: Full stack checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: lease
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: lease_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U lease" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://lease:test-only@localhost:5432/lease_test
+      TEST_DATABASE_URL: postgresql+psycopg://lease:test-only@localhost:5432/lease_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements/dev.txt
+      - run: pip install -r requirements/dev.txt
+      - run: ruff check backend pipeline migrations tests scripts
+      - run: alembic upgrade head
+      - run: pytest -q
+      - run: python -m pipeline.build --output /tmp/rebuilt.json
+      - run: cmp datasets/snapshot.json /tmp/rebuilt.json
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm --dir frontend install --frozen-lockfile
+      - run: pnpm --dir frontend test
+      - run: pnpm --dir frontend build
+      - run: pnpm --dir frontend exec playwright install --with-deps chromium
+      - name: Browser integration
+        run: |
+          unset DATABASE_URL
+          uvicorn backend.main:app --host 127.0.0.1 --port 8000 > /tmp/lease-api.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8000/api/health && break || sleep 1; done
+          pnpm --dir frontend test:e2e
+      - name: Build deployment image
+        run: docker build -t leasesearcher:ci .
+      - name: Image smoke test
+        run: |
+          docker run -d --name lease-smoke -p 8001:8000 leasesearcher:ci
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8001/api/health && break || sleep 1; done
+          curl -fsS http://127.0.0.1:8001/ > /dev/null
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure
+          path: frontend/test-results

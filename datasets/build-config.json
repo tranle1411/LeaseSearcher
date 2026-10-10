@@ -1,0 +1,5 @@
+{
+  "eligibility_policy": "demo_assumed",
+  "pricing_policy": "midpoint",
+  "allow_zip_centroids": false
+}

@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: lease
+      POSTGRES_PASSWORD: local-development-only
+      POSTGRES_DB: lease
+    volumes:
+      - lease-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lease"]
+      interval: 5s
+      retries: 10
+  web:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://lease:local-development-only@db:5432/lease
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "-c", "alembic upgrade head && python -m backend.storage && exec uvicorn backend.main:app --host 0.0.0.0 --port 8000"]
+volumes:
+  lease-db:

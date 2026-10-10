@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: lease-searcher-v2
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
